@@ -1,11 +1,11 @@
-cmake_minimum_required(VERSION 3.15)
-project(galaxy LANGUAGES CXX CUDA)
+cmake_minimum_required(VERSION 3.24)
+project(galaxy LANGUAGES C CXX CUDA)
 
 add_definitions(-D_USE_MATH_DEFINES)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CUDA_ARCHITECTURES 75 89)
+set(CMAKE_CUDA_ARCHITECTURES native)
 
 set(THIRD_PARTY_INCLUDE_DIRECTORIES 
 	"${CMAKE_CURRENT_SOURCE_DIR}/glad/include"
