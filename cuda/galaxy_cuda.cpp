@@ -1,3 +1,4 @@
+#include "shared.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -9,31 +10,27 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-
+// CUDA 
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 
 
-
-
-#define BSIZE 256
-#define BLOCKS (16384 / BSIZE)
-
-const unsigned int windowWidth = 1280;
-const unsigned int windowHeight = 720;
-const int numBodies = 16384;
-
+// Recursos generales
 GLuint VAO, VBO;
 GLuint shaderProgram;
+float4* h_particles = nullptr;
+
+// Recursos CUDA
 struct cudaGraphicsResource* cudaVBO = nullptr;
 float4* d_particles = nullptr;
-float4* h_particles = nullptr;
+
+
+
+// Parámetros de simulación
 int gApprx = 4;
 int gOffset = 0;
 float gStep = 0.001f;
 
-float* hVel = nullptr;
-float* hMass = nullptr;
 
 // ==========================================================
 // CUDA kernel function to compute galaxy simulation
@@ -100,8 +97,8 @@ void loadDubinskiData(const std::string& path, std::vector<float4>& positions, s
     		if (!(ss >> vals[j])) {
         		std::cerr << "Failed to parse line: " << line << std::endl;
         		exit(1);
-    	}
-}
+    	    }
+        }
 
         float4 p, v;
         p.x = vals[1] * 1.5f;
