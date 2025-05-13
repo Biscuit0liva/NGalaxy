@@ -56,7 +56,7 @@ On systems with a single dedicated NVIDIA GPU, no special steps are required.
 
 - Experiments
 - ### CUDA
-  - [ ] Odd vs Even block size value
+  - [ ] 32 multiple vs no multiple block size value
   - [ ] 2D array vs 1D
   - [ ] Local Memory vs No local memory
 
