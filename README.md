@@ -10,28 +10,42 @@ This project was developed in window 11 OS and Ubuntu .
 - CMake 3.24+
 ## Execution
 
-In the root, compile with CMake
+At the project root, compile with CMake specifying whether to use CUDA (default) or OpenCL.
+To do so, run the same commands twice, changing the value of **USE_OPENCL**
+
+### For CUDA (default)
 
 ```bash
-cmake -S . -B build
+cmake -S . -B build -DUSE_OPENCL=OFF
 cmake --build build 
 ```
-And execute the simulation with
+### For OpenCL
+
 ```bash
-./build/Debug/galaxy.exe
+cmake -S . -B build -DUSE_OPENCL=ON
+cmake --build build 
+```
+For the execution, the path changes.
+### For CUDA
+```bash
+./build/cuda/galaxy_cuda.exe
+```
+### For OpenCL
+```bash
+./build/opencl/galaxy_opencl.exe
 ```
 
 ### Note for hybrid GPU systems (Intel + NVIDIA)
 
 On machines with both an integrated Intel GPU and a discrete NVIDIA GPU (Optimus systems), the OpenGL context may default to the Intel GPU, while CUDA runs on the NVIDIA GPU. To enable CUDA–OpenGL interoperability (e.g., cudaGraphicsMapResources), you must force the application to use the NVIDIA GPU. For example:
 ```bash
-prime-run ./build/Debug/galaxy.exe
+prime-run ./build/.../galaxy.exe
 ```
 If prime-run is not available, you can achieve the same effect by using environment variables:
 ```bash
 __NV_PRIME_RENDER_OFFLOAD=1 \
 __GLX_VENDOR_LIBRARY_NAME=nvidia \
-prime-run ./build/Debug/galaxy.exe
+prime-run ./build/.../galaxy.exe
 ```
 
 On systems with a single dedicated NVIDIA GPU, no special steps are required.
