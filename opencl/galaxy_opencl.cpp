@@ -162,7 +162,7 @@ void buildOpenCL(const std::string& path) {
     assert(glXGetCurrentContext() == glContext && "No hay contexto GL actual!");
     clContext = clCreateContext(props, 1, &device, nullptr, nullptr, &err);
     checkCLErr(err, "create context");
-    clQueue = clCreateCommandQueue(clContext, device, 0, &err);
+    clQueue = clCreateCommandQueue(clContext, device, CL_QUEUE_PROFILING_ENABLE, &err);
     checkCLErr(err, "create queue");
 
     std::ifstream file(path);
@@ -203,11 +203,41 @@ void runOpenCL(float time) {
 
     size_t global = numBodies;
     size_t local  = BSIZE;
+    cl_event kernelEvent;
 
-    checkCLErr(clEnqueueNDRangeKernel(clQueue, clKernel, 1, nullptr, &global, &local, 0, nullptr, nullptr), "enqueue kernel");
+    checkCLErr(clEnqueueNDRangeKernel(clQueue, clKernel, 1, nullptr, &global, &local, 0, nullptr, &kernelEvent), "enqueue kernel");
 
-    checkCLErr(clEnqueueReleaseGLObjects(clQueue, 1, &clInteropBuffer, 0, nullptr, nullptr), "release GL buffer");
     clFinish(clQueue);
+
+    cl_ulong t0 = 0, t1 = 0;
+    clGetEventProfilingInfo(kernelEvent,
+                            CL_PROFILING_COMMAND_START,
+                            sizeof(cl_ulong),
+                            &t0,
+                            nullptr);
+    clGetEventProfilingInfo(kernelEvent,
+                            CL_PROFILING_COMMAND_END,
+                            sizeof(cl_ulong),
+                            &t1,
+                            nullptr);
+
+    double ms = (double)(t1 - t0) * 1e-6;
+
+    double secs = ms / 1000.0;
+    long long totalInteractions = (long long)numBodies * numBodies;
+    double interactionsPerSec = totalInteractions / secs;
+
+    // Metricas
+    std::cout << "Paso: " << time
+              << " | Kernel Time: " << ms << " ms"
+              << " | Int/sec: "   << interactionsPerSec
+              << std::endl;
+
+    // Liberar recursos
+    clReleaseEvent(kernelEvent);
+    checkCLErr(
+      clEnqueueReleaseGLObjects(clQueue, 1, &clInteropBuffer, 0, nullptr, nullptr),
+      "release GL buffer");
 }
 
 void initGLCL(const std::vector<float4>& positions, const std::vector<float4>& velocities) {
