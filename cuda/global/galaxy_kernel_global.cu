@@ -72,5 +72,5 @@ extern "C" void cudaComputeGalaxyGlobal(void* dptr, float4* pdata, int N, float 
     float4* out = reinterpret_cast<float4*>(dptr);
     int blockSize = BSIZE;
     int numBlocks = (N + blockSize - 1) / blockSize;
-    galaxyKernelGlobal<<<numBlocks, blockSize, BSIZE * sizeof(float4)>>>(out, pdata, N, step, apprx, offset);
+    galaxyKernelGlobal<<<numBlocks, blockSize>>>(out, pdata, N, step, apprx, offset);
 }
