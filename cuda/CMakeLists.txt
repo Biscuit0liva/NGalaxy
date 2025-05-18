@@ -1,6 +1,7 @@
 #cuda/CMakeLists.txt
 
 add_subdirectory(global)
+add_subdirectory(2D)
 
 add_executable(galaxy_cuda
     galaxy_cuda.cpp

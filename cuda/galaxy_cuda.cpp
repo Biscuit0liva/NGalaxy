@@ -14,6 +14,11 @@
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 
+#include <chrono> // Para medir el tiempo
+
+// Variables para calcular FPS
+auto lastTime = std::chrono::high_resolution_clock::now();
+int frameCount = 0;
 
 // Recursos generales
 GLuint VAO, VBO;
@@ -27,7 +32,7 @@ float4* d_particles = nullptr;
 
 
 // Parámetros de simulación
-int gApprx = 4;
+int gApprx = 1;
 int gOffset = 0;
 float gStep = 0.001f;
 
@@ -244,7 +249,16 @@ int main() {
         glBindVertexArray(VAO);
         glDrawArrays(GL_POINTS, 0, numBodies);
         glfwSwapBuffers(window);
-
+        // Calcular FPS
+        frameCount++;
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float> elapsedTime = currentTime - lastTime;
+        if (elapsedTime.count() >= 1.0f) { // Cada segundo
+            float fps = frameCount / elapsedTime.count();
+            std::cout << "FPS: " << fps << std::endl;
+            frameCount = 0;
+            lastTime = currentTime;
+        }
         time += 1.0f;
     }
 
