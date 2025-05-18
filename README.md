@@ -27,8 +27,17 @@ cmake --build build
 ```
 For the execution, the path changes.
 ### For CUDA
+original version
 ```bash
-./build/cuda/galaxy_cuda.exe
+./build/cuda/Debug/galaxy_cuda.exe
+```
+2D mapping version
+```bash
+./build/cuda/2D/Debug/galaxy_cuda_2D.exe
+```
+Global memory version
+```bash
+./build/cuda/global/Debug/galaxy_cuda_global.exe
 ```
 ### For OpenCL
 ```bash
@@ -52,13 +61,11 @@ On systems with a single dedicated NVIDIA GPU, no special steps are required.
 
 ## TODO
 
-- openCL version
-
 - Experiments
 - ### CUDA
-  - [ ] 32 multiple vs no multiple block size value
-  - [ ] 2D array vs 1D
-  - [ ] Local Memory vs No local memory
+  - [x] 32 multiple vs no multiple block size value
+  - [x] 2D array vs 1D
+  - [x] Local Memory vs No local memory
 
 - ### openCL
   - [ ] 32 multiple vs no multiple block size value
