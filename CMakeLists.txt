@@ -27,6 +27,7 @@ if (USE_OPENCL)
 else()
     add_subdirectory(cuda)
 endif()
+add_subdirectory(sequential)
 
 
 
