@@ -15,10 +15,13 @@
 #include <cuda_gl_interop.h>
 
 #include <chrono> // Para medir el tiempo
+# include <iomanip> // Para formatear la salida
 
 // Variables para calcular FPS
 auto lastTime = std::chrono::high_resolution_clock::now();
 int frameCount = 0;
+// archivo de resultados
+std::ofstream resultsFile;
 
 // Recursos generales
 GLuint VAO, VBO;
@@ -70,11 +73,13 @@ void runCuda(float time) {
     double seconds = milliseconds / 1000.0;
     long long totalInteractions = static_cast<long long>(numBodies) * numBodies;
     double interactionsPerSec = totalInteractions / seconds;
-
+    // registro en consola y archivo
     std::cout << "Paso: " << time
                 << " | Tiempo kernel: " << milliseconds << " ms"
                 << " | Interacciones/s: " << interactionsPerSec << std::endl;
 
+    resultsFile << std::fixed << std::setprecision(3) << milliseconds << ","
+                << std::setprecision(0) << interactionsPerSec << "\n";
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
 
@@ -242,7 +247,23 @@ int main() {
     glEnable(GL_PROGRAM_POINT_SIZE);
 
     float time = 0.0f;
-    while (!glfwWindowShouldClose(window)) {
+    // Archivo para guardar resultados
+    std::string experimentName = "cuda_2D";
+    // El nombre contiene: version de la implementacion, numero de particulas, tamaño de bloque
+    std::string fileName = "results_"+experimentName+"_"+std::to_string(numBodies)+"_"+std::to_string(BSIZE)+".csv";
+    resultsFile.open(fileName);
+    if(!resultsFile.is_open()){
+        std::cerr << "No se pudo abrir el archivo de resultados:" << fileName << std::endl;
+        return -1;
+    }
+    resultsFile << "time_ms, interactions_per_sec\n" << std::endl;
+    // Ejecuta la simulacion por 10 segundos
+    auto benchmarkStart = std::chrono::high_resolution_clock::now();
+    while (true) {
+        auto now = std::chrono::high_resolution_clock::now();
+        float elapsedSec = std::chrono::duration<float>(now - benchmarkStart).count();
+        if (elapsedSec >= 10.0f) break;
+
         glfwPollEvents();
         runCuda(time);
 
@@ -270,5 +291,6 @@ int main() {
     glDeleteProgram(shaderProgram);
     glfwDestroyWindow(window);
     glfwTerminate();
+    resultsFile.close();
     return 0;
 }
