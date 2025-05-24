@@ -3,3 +3,6 @@ build/
 
 # Ignore .vscode directory
 .vscode/
+
+# Ignore csv files
+*.csv

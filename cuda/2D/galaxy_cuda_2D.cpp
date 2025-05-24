@@ -262,7 +262,7 @@ int main() {
     while (true) {
         auto now = std::chrono::high_resolution_clock::now();
         float elapsedSec = std::chrono::duration<float>(now - benchmarkStart).count();
-        if (elapsedSec >= 10.0f) break;
+        if (elapsedSec >= 30.0f) break;
 
         glfwPollEvents();
         runCuda(time);

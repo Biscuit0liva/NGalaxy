@@ -311,7 +311,7 @@ int main() {
     glEnable(GL_PROGRAM_POINT_SIZE);
 
     float time = 0.0f;
-    std::string experimentName = "opencl_base";
+    std::string experimentName = "opencl_global";
     // El nombre contiene: version de la implementacion, numero de particulas, tamaño de bloque
     std::string fileName = "results_"+experimentName+"_"+std::to_string(numBodies)+"_"+std::to_string(BSIZE)+".csv";
     resultsFile.open(fileName);

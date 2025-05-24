@@ -1,5 +1,7 @@
 #include "shared.hpp"
 
+#define CL_TARGET_OPENCL_VERSION 120  // OpenCL 1.2 para mayor compatibilidad
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -47,6 +49,10 @@ int gApprx = 1;
 int gOffset = 0;
 float gStep = 0.001f;
 
+// Parámetros para work-group 2D
+const int BSIZE_X = 16;
+const int BSIZE_Y = 16;
+
 void checkCLErr(cl_int err, const char* msg) {
     if (err != CL_SUCCESS) {
         std::cerr << "OpenCL error: " << msg << " (" << err << ")\n";
@@ -72,18 +78,16 @@ void loadDubinskiData(const std::string& path, std::vector<float4>& positions, s
         for (int s = 1; s < skip && std::getline(file, line); s++); // skip
 
         std::istringstream ss(line);
-		for (int j = 0; j < 7; j++) {
-    		if (!(ss >> vals[j])) {
-        		std::cerr << "Failed to parse line: " << line << std::endl;
-        		exit(1);
-    	    }
+        for (int j = 0; j < 7; j++) {
+            if (!(ss >> vals[j])) {
+                std::cerr << "Failed to parse line: " << line << std::endl;
+                exit(1);
+            }
         }
 
         float4 p{ vals[1]*1.5f, vals[2]*1.5f, vals[3]*1.5f, vals[0]*120000.0f };
-
         float4 v{ vals[4]*8.0f, vals[5]*8.0f, vals[6]*8.0f, 1.0f };
 
-        
         h_particles[i] = p;
         h_particles[i + numBodies] = v;
 
@@ -157,7 +161,6 @@ void buildOpenCL(const std::string& path) {
     clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, sz, &exts[0], nullptr);
     std::cout << "OpenCL_EXTS: " << exts << "\n";
 
-
     Display* x11Display = glXGetCurrentDisplay();
     GLXContext glContext = glXGetCurrentContext();
 
@@ -189,7 +192,7 @@ void buildOpenCL(const std::string& path) {
         std::exit(EXIT_FAILURE);
     }
 
-    clKernel = clCreateKernel(clProgram, "galaxyKernel", &err);
+    clKernel = clCreateKernel(clProgram, "galaxyKernel2D", &err);
     checkCLErr(err, "create kernel");
 }
 
@@ -209,11 +212,18 @@ void runOpenCL(float time) {
     clSetKernelArg(clKernel, 4, sizeof(int), &gApprx);
     clSetKernelArg(clKernel, 5, sizeof(int), &gOffset);
 
-    size_t global = numBodies;
-    size_t local  = BSIZE;
+    // Calcular dimensiones 2D para el espacio de trabajo global
+    size_t particles_sqrt = (size_t)ceil(sqrt((double)numBodies));
+    size_t global[2] = { particles_sqrt, particles_sqrt };
+    size_t local[2]  = { BSIZE_X, BSIZE_Y };
+    
+    // Ajustar global para que sea múltiplo de local
+    global[0] = ((particles_sqrt + BSIZE_X - 1) / BSIZE_X) * BSIZE_X;
+    global[1] = ((particles_sqrt + BSIZE_Y - 1) / BSIZE_Y) * BSIZE_Y;
+    
     cl_event kernelEvent;
 
-    checkCLErr(clEnqueueNDRangeKernel(clQueue, clKernel, 1, nullptr, &global, &local, 0, nullptr, &kernelEvent), "enqueue kernel");
+    checkCLErr(clEnqueueNDRangeKernel(clQueue, clKernel, 2, nullptr, global, local, 0, nullptr, &kernelEvent), "enqueue kernel");
 
     clFinish(clQueue);
 
@@ -290,7 +300,7 @@ int main() {
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "Galaxy OpenCL", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "Galaxy OpenCL 2D", nullptr, nullptr);
     if (!window) {
         std::cerr << "GLFW window creation failed\n";
         return -1;
@@ -305,15 +315,15 @@ int main() {
     std::vector<float4> pos, vel;
     loadDubinskiData("data/dubinski.tab", pos, vel);
 
-    buildOpenCL("build/galaxy_kernel.cl");
+    buildOpenCL("build/galaxy_kernel_2D.cl");
     shaderProgram = createShaderProgram();
     initGLCL(pos, vel);
     glEnable(GL_PROGRAM_POINT_SIZE);
 
     float time = 0.0f;
-    std::string experimentName = "opencl_base";
+    std::string experimentName = "opencl_2d";
     // El nombre contiene: version de la implementacion, numero de particulas, tamaño de bloque
-    std::string fileName = "results_"+experimentName+"_"+std::to_string(numBodies)+"_"+std::to_string(BSIZE)+".csv";
+    std::string fileName = "results_"+experimentName+"_"+std::to_string(numBodies)+"_"+std::to_string(BSIZE_X*BSIZE_Y)+".csv";
     resultsFile.open(fileName);
     if(!resultsFile.is_open()){
         std::cerr << "No se pudo abrir el archivo de resultados:" << fileName << std::endl;
@@ -326,7 +336,7 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
         auto now = std::chrono::high_resolution_clock::now();
         float elapsedSec = std::chrono::duration<float>(now - benchmarkStart).count();
-        if (elapsedSec >= 30.0f) break;
+        if (elapsedSec >= 20.0f) break;
 
         glfwPollEvents();
         runOpenCL(time);
