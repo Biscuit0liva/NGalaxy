@@ -32,7 +32,8 @@ float4* h_particles = nullptr;
 struct cudaGraphicsResource* cudaVBO = nullptr;
 float4* d_particles = nullptr;
 
-
+int width = 128;
+int height = numBodies / width;
 
 // Parámetros de simulación
 int gApprx = 1;
@@ -53,8 +54,6 @@ void runCuda(float time) {
     cudaGraphicsMapResources(1, &cudaVBO, 0);
     cudaGraphicsResourceGetMappedPointer((void**)&dptr, &num, cudaVBO);
 
-    int width = 128;
-    int height = numBodies / width;
     gOffset = (gOffset + 1) % gApprx;
     // Medicion de tiempo
     cudaEvent_t start, stop;
@@ -250,7 +249,9 @@ int main() {
     // Archivo para guardar resultados
     std::string experimentName = "cuda_2D";
     // El nombre contiene: version de la implementacion, numero de particulas, tamaño de bloque
-    std::string fileName = "results_"+experimentName+"_"+std::to_string(numBodies)+"_"+std::to_string(BSIZE)+".csv";
+    std::string fileName = "results_"+experimentName+"_"+std::to_string(numBodies)+"_"+
+        std::to_string(BSIZE)+"_("+std::to_string(width)+"x"+std::to_string(height)+").csv";
+
     resultsFile.open(fileName);
     if(!resultsFile.is_open()){
         std::cerr << "No se pudo abrir el archivo de resultados:" << fileName << std::endl;

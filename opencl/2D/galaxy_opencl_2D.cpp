@@ -1,6 +1,6 @@
 #include "shared.hpp"
 
-#define CL_TARGET_OPENCL_VERSION 120  // OpenCL 1.2 para mayor compatibilidad
+#define CL_TARGET_OPENCL_VERSION 120
 
 #include <iostream>
 #include <fstream>
@@ -44,14 +44,18 @@ cl_kernel clKernel;
 cl_mem clInteropBuffer;
 cl_mem clDataBuffer;
 
-// Parámetros de simulación
+// Parametros de simulacion
 int gApprx = 1;
 int gOffset = 0;
 float gStep = 0.001f;
 
-// Parámetros para work-group 2D
+// Parametros del bloque
 const int BSIZE_X = 16;
 const int BSIZE_Y = 16;
+
+// Dimensiones de la grilla
+size_t gridX = 8;
+size_t gridY = 8;
 
 void checkCLErr(cl_int err, const char* msg) {
     if (err != CL_SUCCESS) {
@@ -212,14 +216,10 @@ void runOpenCL(float time) {
     clSetKernelArg(clKernel, 4, sizeof(int), &gApprx);
     clSetKernelArg(clKernel, 5, sizeof(int), &gOffset);
 
-    // Calcular dimensiones 2D para el espacio de trabajo global
-    size_t particles_sqrt = (size_t)ceil(sqrt((double)numBodies));
-    size_t global[2] = { particles_sqrt, particles_sqrt };
+    // Dimensiones de la grilla
     size_t local[2]  = { BSIZE_X, BSIZE_Y };
+    size_t global[2] = { gridX * local[0], gridY * local[1] };
     
-    // Ajustar global para que sea múltiplo de local
-    global[0] = ((particles_sqrt + BSIZE_X - 1) / BSIZE_X) * BSIZE_X;
-    global[1] = ((particles_sqrt + BSIZE_Y - 1) / BSIZE_Y) * BSIZE_Y;
     
     cl_event kernelEvent;
 
@@ -323,7 +323,8 @@ int main() {
     float time = 0.0f;
     std::string experimentName = "opencl_2d";
     // El nombre contiene: version de la implementacion, numero de particulas, tamaño de bloque
-    std::string fileName = "results_"+experimentName+"_"+std::to_string(numBodies)+"_"+std::to_string(BSIZE_X*BSIZE_Y)+".csv";
+    std::string fileName = "results_"+experimentName+"_"+std::to_string(numBodies)+"_"+
+        std::to_string(BSIZE_X*BSIZE_Y)+"_("+std::to_string(gridX)+"x"+std::to_string(gridY)+").csv";
     resultsFile.open(fileName);
     if(!resultsFile.is_open()){
         std::cerr << "No se pudo abrir el archivo de resultados:" << fileName << std::endl;

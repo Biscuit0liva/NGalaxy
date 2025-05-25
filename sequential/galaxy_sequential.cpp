@@ -231,6 +231,13 @@ int main() {
         return -1;
     }
 
+    std::ofstream resultsFile("results_cpu.csv");
+    if (!resultsFile.is_open()) {
+        std::cerr << "No se pudo abrir results_cpu.csv para escritura\n";
+        return -1;
+    }
+    resultsFile << "time_ms, interactions_per_sec\n";
+
     std::vector<float4> pos, vel;
     loadDubinskiData("data/dubinski.tab", pos, vel);
     shaderProgram = createShaderProgram();
@@ -239,8 +246,12 @@ int main() {
 
     float time = 0.0f;
     auto lastTime = std::chrono::high_resolution_clock::now();
-
+    auto benchmarkStart = std::chrono::high_resolution_clock::now();
     while (!glfwWindowShouldClose(window)) {
+        auto now = std::chrono::high_resolution_clock::now();
+        float elapsedSec = std::chrono::duration<float>(now - benchmarkStart).count();
+        if (elapsedSec >= 10.0f) break;
+
         glfwPollEvents();
 
         gOffset = (gOffset + 1) % gApprx;
@@ -252,6 +263,7 @@ int main() {
         double s = ms / 1000.0;
         double ips = (double)numBodies * numBodies / s;
         std::cout << "Paso: " << time << " | Tiempo CPU: " << ms << " ms | Interacciones/s: " << ips << std::endl;
+        resultsFile << ms << "," << ips << "\n";
 
         // copiar datos actualizados al VBO
         glBindBuffer(GL_ARRAY_BUFFER, VBO);

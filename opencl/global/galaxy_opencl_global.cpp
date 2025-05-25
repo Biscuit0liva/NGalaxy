@@ -211,9 +211,10 @@ void runOpenCL(float time) {
 
     size_t global = numBodies;
     size_t local  = BSIZE;
+    size_t rounded = ((global + local - 1) / local) * local; // redondeo, opencl es mas mañoso que cuda para el tamaño de bloque
     cl_event kernelEvent;
 
-    checkCLErr(clEnqueueNDRangeKernel(clQueue, clKernel, 1, nullptr, &global, &local, 0, nullptr, &kernelEvent), "enqueue kernel");
+    checkCLErr(clEnqueueNDRangeKernel(clQueue, clKernel, 1, nullptr, &rounded, &local, 0, nullptr, &kernelEvent), "enqueue kernel");
 
     clFinish(clQueue);
 

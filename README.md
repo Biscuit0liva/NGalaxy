@@ -40,8 +40,17 @@ Global memory version
 ./build/cuda/global/Debug/galaxy_cuda_global.exe
 ```
 ### For OpenCL
+original version
 ```bash
-./build/opencl/galaxy_opencl.exe
+./build/opencl/Debug/galaxy_galaxy_opencl.exe
+```
+2D mapping version
+```bash
+./build/opencl/2D/Debug/galaxy_opencl_2D.exe
+```
+Global memory version
+```bash
+./build/opencl/global/Debug/galaxy_opencl_global.exe
 ```
 
 ### Note for hybrid GPU systems (Intel + NVIDIA)
@@ -68,8 +77,8 @@ On systems with a single dedicated NVIDIA GPU, no special steps are required.
   - [x] Local Memory vs No local memory
 
 - ### openCL
-  - [ ] 32 multiple vs no multiple block size value
-  - [ ] 2D array vs 1D
-  - [ ] Local Memory vs No local memory
+  - [x] 32 multiple vs no multiple block size value
+  - [x] 2D array vs 1D
+  - [x] Local Memory vs No local memory
 
 
