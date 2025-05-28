@@ -83,6 +83,7 @@ plt.show()
 
 # — Comparación interna de variantes para CUDA y OpenCL ——
 # Tomamos solo GPU (CUDA+OpenCL) ya parseados
+# results_opencl_2d_32768_256_(8x8).csv,8.621808652246257,0.6477686249725014,0.01868390606037318,0.03662045587833143,125207675673.25706,8958033240.964167,258380917.3637885,506426598.03302544
 gpu = gpu.copy()
 
 def parse_gpu_filename(fname):

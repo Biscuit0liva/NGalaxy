@@ -231,7 +231,7 @@ int main() {
         return -1;
     }
 
-    std::ofstream resultsFile("results_cpu.csv");
+    std::ofstream resultsFile("results_cpu_" + std::to_string(numBodies) +".csv");
     if (!resultsFile.is_open()) {
         std::cerr << "No se pudo abrir results_cpu.csv para escritura\n";
         return -1;
