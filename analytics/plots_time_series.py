@@ -4,9 +4,9 @@ import re
 import os
 
 # Carga de datos
-df = pd.read_csv('/home/benjamin/Desktop/GPU/T2/NGalaxy/analytics/experiment_stats.csv')
+df = pd.read_csv('/home/benjamin/Desktop/GPU/T2/NGalaxy/analytics/summary_stats.csv')
 
-output_dir = 'plots_time_series'
+output_dir = 'plots_time_series2'
 os.makedirs(output_dir, exist_ok=True)
 
 def save_current_plot(output_dir='plots', dpi=300):
@@ -74,20 +74,48 @@ avg_df = df.groupby(['backend', 'particles'])['time_ms_mean'].mean().reset_index
 # Ordenar
 avg_df = avg_df.sort_values('particles')
 
-# Graficar 3 curvas: cpu, cuda promedio, opencl promedio
-plt.figure()
-for backend in ['cpu', 'cuda', 'opencl']:
-    subset = avg_df[avg_df['backend'] == backend]
-    plt.plot(subset['particles'], subset['time_ms_mean'], marker='o', label=backend.upper())
+pivot = avg_df.pivot(index='particles', columns='backend', values='time_ms_mean').reset_index()
+
+# Filtrar solo el rango de interés: 2^8 a 2^12
+low, high = 2**8, 2**12
+pivot_range = pivot[(pivot['particles'] >= low) & (pivot['particles'] <= high)]
+
+# Encontrar el umbral donde el tiempo de CPU supera al de ambas GPU
+threshold = None
+for _, row in pivot_range.iterrows():
+    # Asegurarse de que existan columnas 'cuda' y 'opencl' para comparar
+    cuda_time = row['cuda'] if 'cuda' in row else float('inf')
+    opencl_time = row['opencl'] if 'opencl' in row else float('inf')
+    if row['cpu'] > cuda_time and row['cpu'] > opencl_time:
+        threshold = int(row['particles'])
+        break
+
+# Graficar las tres curvas y marcar el umbral
+plt.figure(figsize=(8, 5))
+plt.plot(pivot_range['particles'], pivot_range['cpu'], marker='o', label='CPU', color='C2')
+plt.plot(pivot_range['particles'], pivot_range['cuda'], marker='o', label='CUDA', color='C0')
+plt.plot(pivot_range['particles'], pivot_range['opencl'], marker='s', label='OpenCL', color='C1')
+
+if threshold is not None:
+    # Línea vertical en el umbral
+    plt.axvline(x=threshold, color='gray', linestyle='--', label=f'Threshold N={threshold}')
+    # Etiqueta sobre la línea
+    plt.text(
+        threshold, 
+        plt.ylim()[1] * 0.5, 
+        f'N={threshold}', 
+        rotation=90, 
+        verticalalignment='center', 
+        color='gray'
+    )
 
 plt.xlabel('Número de partículas')
 plt.ylabel('Tiempo medio (ms)')
-plt.title('Tiempo medio vs Número de partículas (Promedio por Backend)')
+plt.title('Tiempo medio vs Número de partículas (Rango $2^8$ a $2^{12}$)')
 plt.legend()
-plt.grid(True)
+plt.grid(True, which='both', ls='--', lw=0.5)
+plt.xlim(low, high)
 plt.tight_layout()
-save_current_plot(output_dir)
-plt.show()
 
 df_gpu = df[df['backend'].isin(['cuda', 'opencl'])]
 
