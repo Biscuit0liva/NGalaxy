@@ -25,12 +25,16 @@ struct float3 {
 };
 
 // Recursos generales
-GLuint VAO, VBO;
+GLuint VAO;
+GLuint VBO;
 GLuint shaderProgram;
-std::vector<float4> particles; 
+float4* h_particles = nullptr;
+
+std::vector<float4> particles;
+float4* dptr;
 
 // Parámetros de simulación
-int gApprx = 64;
+int gApprx = 1;
 int gOffset = 0;
 float gStep = 0.001f;
 
@@ -39,57 +43,64 @@ float gStep = 0.001f;
 // ==========================================================
 // CPU Physics
 // ==========================================================
-void computeGalaxyCPU(std::vector<float4>& particles, int N, float step, int apprx, int offset){
+void computeGalaxyCPU(float4* dptr, std::vector<float4>& particles, int N, float step, int apprx, int offset){
     const float softeningSquared = 0.01f;
     const float damping = 1.0f;
     const float ep = 0.67f;
-
-    std::vector<float4> newPos(N);
-    std::vector<float4> newVel(N);
-
-    int start = (N / apprx) * offset;
-
+    std::vector<float4> newParticles(N * 2);
     for(int i=0; i<N; i++){
-        float4 pi = particles[i];
-        float4 vi = particles[i + N];
+        unsigned int pLoc = i;
+        unsigned int vLoc = i + N;
+
+        float4 myPosition = particles[pLoc];
+        float4 myVelocity = particles[vLoc];
 
         float3 acc = {0.0f, 0.0f, 0.0f};
+        float3 r;
+        float distSqr, distCube, s;
 
-        for (int j = start; j < start + (N / apprx); j++) {
-            float4 pj = particles[j];
+        for(int j=0; j<N; j++){
+            r.x = particles[j].x - myPosition.x;
+            r.y = particles[j].y - myPosition.y;
+            r.z = particles[j].z - myPosition.z;
 
-            float3 r = {pj.x - pi.x, pj.y - pi.y, pj.z - pi.z};
-            float distSqr = r.x * r.x + r.y * r.y + r.z * r.z + softeningSquared;
+            distSqr = r.x * r.x + r.y * r.y + r.z * r.z;
+            distSqr += softeningSquared;
+
             float dist = sqrtf(distSqr);
-            float distCube = dist * dist * dist;
+            distCube = dist * dist * dist;
+            //if (distCube < 1.0f) continue;
 
-            if (distCube < 1.0f) continue;
+            s = particles[j].w / distCube;
 
-            float s = pj.w / distCube;
             acc.x += r.x * s * ep;
             acc.y += r.y * s * ep;
             acc.z += r.z * s * ep;
         }
 
-        vi.x += acc.x * step;
-        vi.y += acc.y * step;
-        vi.z += acc.z * step;
+        myVelocity.x += acc.x * step;
+        myVelocity.y += acc.y * step;
+        myVelocity.z += acc.z * step;
 
-        vi.x *= damping;
-        vi.y *= damping;
-        vi.z *= damping;
+        myVelocity.x *= damping;
+        myVelocity.y *= damping;
+        myVelocity.z *= damping;
 
-        pi.x += vi.x * step;
-        pi.y += vi.y * step;
-        pi.z += vi.z * step;
-        
-        newPos[i] = pi;
-        newVel[i] = vi;
+        myPosition.x += myVelocity.x * step;
+        myPosition.y += myVelocity.y * step;
+        myPosition.z += myVelocity.z * step;
+
+        // Guardar resultados
+        newParticles[pLoc] = myPosition;
+        newParticles[vLoc] = myVelocity;
+
+        dptr[2 * pLoc] = float4{myPosition.x, myPosition.y, myPosition.z, 1.0f};
+        dptr[2 * pLoc+1] = float4{myVelocity.x, myVelocity.y, myVelocity.z, 1.0f};
     }
-
+    // Actualizar partículas
     for(int i=0; i<N; i++){
-        particles[i] = newPos[i];
-        particles[i + N] = newVel[i];
+        particles[i] = newParticles[i];
+        particles[i + N] = newParticles[i + N];
     }
 }
 
@@ -104,6 +115,10 @@ void loadDubinskiData(const std::string& path, std::vector<float4>& positions, s
     int skip = 49152 / numBodies;
     std::string line;
     float vals[7];
+    int count = 0;
+
+    h_particles = new float4[numBodies * 2];
+
     for (int i = 0; i < numBodies && std::getline(file, line); ) {
         for (int s = 1; s < skip && std::getline(file, line); s++); // skip
 
@@ -126,8 +141,11 @@ void loadDubinskiData(const std::string& path, std::vector<float4>& positions, s
         v.z = vals[6] * 8.0f;
         v.w = 1.0f;
 
-        positions.push_back(p);
-        velocities.push_back(v);
+        h_particles[i] = p;
+        h_particles[i + numBodies] = v;
+
+        positions.push_back({p.x, p.y, p.z, 1.0f});
+        velocities.push_back({v.x, v.y, v.z, 1.0f});
         i++;
     }
 }
@@ -187,20 +205,21 @@ GLuint createShaderProgram() {
 
 // ==========================================================
 void initGL(std::vector<float4>& positions, std::vector<float4>& velocities) {
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    
     std::vector<float4> interleaved;
     interleaved.reserve(numBodies * 2);
     for (int i = 0; i < numBodies; ++i) {
         interleaved.push_back(positions[i]);
         interleaved.push_back(velocities[i]);
     }
-    particles = interleaved;
 
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, interleaved.size() * sizeof(float4), interleaved.data(), GL_DYNAMIC_DRAW);
-    
+
+
     // posicion -> location =0
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(float4), (void*)0);
@@ -231,49 +250,62 @@ int main() {
         return -1;
     }
 
-    std::ofstream resultsFile("results_cpu_" + std::to_string(numBodies) +".csv");
-    if (!resultsFile.is_open()) {
-        std::cerr << "No se pudo abrir results_cpu.csv para escritura\n";
-        return -1;
-    }
-    resultsFile << "time_ms, interactions_per_sec\n";
-
     std::vector<float4> pos, vel;
     loadDubinskiData("data/dubinski.tab", pos, vel);
+    particles.assign(h_particles, h_particles + numBodies * 2);
+
     shaderProgram = createShaderProgram();
     initGL(pos, vel);
     glEnable(GL_PROGRAM_POINT_SIZE);
+    
 
     float time = 0.0f;
     auto lastTime = std::chrono::high_resolution_clock::now();
     auto benchmarkStart = std::chrono::high_resolution_clock::now();
+    int currentBuffer = 0;
     while (!glfwWindowShouldClose(window)) {
         auto now = std::chrono::high_resolution_clock::now();
         float elapsedSec = std::chrono::duration<float>(now - benchmarkStart).count();
-        if (elapsedSec >= 10.0f) break;
+        if (elapsedSec >= 30.0f) break;
 
         glfwPollEvents();
 
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        dptr = (float4*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+        if (!dptr) {
+            std::cerr << "Error: no se pudo mapear el VBO para escritura." << std::endl;
+            break;
+        }
+
         gOffset = (gOffset + 1) % gApprx;
         auto start = std::chrono::high_resolution_clock::now();
-        computeGalaxyCPU(particles, numBodies, gStep, gApprx, gOffset);
+        computeGalaxyCPU(dptr, particles, numBodies, gStep, gApprx, gOffset);
         auto stop = std::chrono::high_resolution_clock::now();
+
+        glUnmapBuffer(GL_ARRAY_BUFFER);
 
         float ms = std::chrono::duration<float, std::milli>(stop - start).count();
         double s = ms / 1000.0;
         double ips = (double)numBodies * numBodies / s;
         std::cout << "Paso: " << time << " | Tiempo CPU: " << ms << " ms | Interacciones/s: " << ips << std::endl;
-        resultsFile << ms << "," << ips << "\n";
+        
 
-        // copiar datos actualizados al VBO
+        // copiar datos actualizados al VBO: TODO
+        std::cout << "Actualizando VBO con " << numBodies * 2 << " partículas." << std::endl;
+        std::cout << "Actualizando 2 VBO con " << numBodies * 2 << " partículas." << std::endl;
+        
+        // Usar el de lectura para visualizacion
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, particles.size() * sizeof(float4), particles.data());
-
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(float4), (void*)0);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(float4), (void*)(sizeof(float4)));
+        std::cout << "Actualizando 3 VBO con " << numBodies * 2 << " partículas." << std::endl;
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO);
         glDrawArrays(GL_POINTS, 0, numBodies);
         glfwSwapBuffers(window);
+        // alternar buffers
+        currentBuffer = 1 - currentBuffer;
         // Calcular FPS
         frameCount++;
         auto currentTime = std::chrono::high_resolution_clock::now();
